@@ -30,17 +30,18 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     private var btnStartStop: Button? = null
     private var folder: File? = null
     private var etUrl: String = "rtmp://192.168.18.240/live/ring01"
+    private var stopAttempts: Int = 3
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val surfaceView = findViewById<SurfaceView>(R.id.surfaceView)
+        permissionLauncherMultiple.launch(permissions)
         btnStartStop = findViewById(R.id.b_start_stop)
         btnStartStop?.setOnClickListener(this)
         rtmpCamera1 = RtmpCamera1(surfaceView, this)
         rtmpCamera1!!.setReTries(3)
         surfaceView.holder.addCallback(this)
-        permissionLauncherMultiple.launch(permissions)
     }
 
     private val permissionLauncherMultiple = registerForActivityResult(
@@ -54,7 +55,11 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
         if (allAreGranted) {
 
         } else {
-            Toast.makeText(this@MainActivity, "Todos los servicios denegados", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this@MainActivity,
+                "All permissions denied",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -84,9 +89,22 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
                     btnStartStop!!.setText(R.string.start_button)
                 }
             } else {
-                btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
-                btnStartStop!!.setText(R.string.start_button)
-                rtmpCamera1!!.stopStream()
+                if(stopAttempts === 1) {
+                    stopAttempts = 3
+                    btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
+                    btnStartStop!!.setText(R.string.start_button)
+                    rtmpCamera1!!.stopStream()
+                } else {
+                    stopAttempts = stopAttempts - 1
+
+                    if(stopAttempts !== 0){
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Tap ${stopAttempts} more times to stop",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
             else -> {}
         }
@@ -103,7 +121,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
 
     override fun onAuthSuccessRtmp() {
         runOnUiThread {
-            Toast.makeText(this@MainActivity, "Auth success", Toast.LENGTH_LONG).show()
+            Toast.makeText(this@MainActivity, "Auth success", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -127,23 +145,21 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
         }
     }
 
-    override fun onConnectionStartedRtmp(rtmpUrl: String) {
-
-    }
+    override fun onConnectionStartedRtmp(rtmpUrl: String) { }
 
     override fun onConnectionSuccessRtmp() {
         runOnUiThread {
             Toast.makeText(
                 this@MainActivity,
                 "Connection success",
-                Toast.LENGTH_LONG
+                Toast.LENGTH_SHORT
             ).show()
         }
     }
 
     override fun onDisconnectRtmp() {
         runOnUiThread {
-            Toast.makeText(this@MainActivity, "Disconnected", Toast.LENGTH_LONG).show()
+            Toast.makeText(this@MainActivity, "Disconnected", Toast.LENGTH_SHORT).show()
         }
     }
 
