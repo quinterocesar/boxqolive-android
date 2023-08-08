@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     private var rtmpCamera1: RtmpCamera1? = null
     private var btnStartStop: Button? = null
     private var folder: File? = null
-    private var etUrl: String = "rtmp://192.168.18.240/live/ring01"
+    private var etUrl: String = "rtmp://192.168.0.146/live/ring01"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
