@@ -1,6 +1,7 @@
 package com.boxqo.boxqolive
 
 import android.Manifest
+import android.graphics.Color
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -9,14 +10,14 @@ import android.widget.Button
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import com.boxqo.boxqolive.utils.PathUtil
 import com.pedro.rtmp.utils.ConnectCheckerRtmp
 import com.pedro.rtplibrary.rtmp.RtmpCamera1
+import com.pedro.rtplibrary.util.BitrateAdapter
 import java.io.File
+
 
 class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListener,
     SurfaceHolder.Callback {
-
     private val currentDateAndTime = ""
     private val permissions = arrayOf(
         Manifest.permission.CAMERA,
@@ -24,7 +25,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
         Manifest.permission.WRITE_EXTERNAL_STORAGE
     )
     private val surfaceView: SurfaceView? = null
-
+    private val bitrateAdapter: BitrateAdapter? = null
     private var rtmpCamera1: RtmpCamera1? = null
     private var btnStartStop: Button? = null
     private var folder: File? = null
@@ -33,7 +34,12 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        val surfaceView = findViewById<SurfaceView>(R.id.surfaceView)
+        btnStartStop = findViewById(R.id.b_start_stop)
+        btnStartStop?.setOnClickListener(this)
+        rtmpCamera1 = RtmpCamera1(surfaceView, this)
+        rtmpCamera1!!.setReTries(3)
+        surfaceView.holder.addCallback(this)
         permissionLauncherMultiple.launch(permissions)
     }
 
@@ -46,47 +52,102 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
         }
 
         if (allAreGranted) {
-            val surfaceView = findViewById<SurfaceView>(R.id.surfaceView)
-            btnStartStop = findViewById(R.id.b_start_stop)
-            rtmpCamera1 = RtmpCamera1(surfaceView, this)
-            rtmpCamera1!!.setReTries(10)
-            surfaceView.holder.addCallback(this)
-            val camera = if (rtmpCamera1 !== null) "yes" else "no"
-            Toast.makeText(this@MainActivity, camera, Toast.LENGTH_SHORT).show()
+
         } else {
-            Toast.makeText(this@MainActivity, "Todos los servicios denegados", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@MainActivity, "Todos los servicios denegados", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onClick(view: View) {
+        when (view.id) {
+            R.id.b_start_stop -> if (!rtmpCamera1!!.isStreaming) {
+                if (rtmpCamera1!!.isRecording || rtmpCamera1!!.prepareAudio() && rtmpCamera1!!.prepareVideo()) {
+                    rtmpCamera1!!.prepareVideo(
+                        1024,
+                        768,
+                        30,
+                        5000000,
+                        0,
+                        0
+                    )
+                    rtmpCamera1!!.disableAudio()
+                    rtmpCamera1!!.prepareVideo()
+                    rtmpCamera1!!.startStream(etUrl)
+                    btnStartStop!!.setBackgroundColor(Color.parseColor("#D50222"))
+                    btnStartStop!!.setText(R.string.stop_button)
+                } else {
+                    Toast.makeText(
+                        this, "Error preparing stream, This device cant do it",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
+                    btnStartStop!!.setText(R.string.start_button)
+                }
+            } else {
+                btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
+                btnStartStop!!.setText(R.string.start_button)
+                rtmpCamera1!!.stopStream()
+            }
+            else -> {}
         }
     }
 
     override fun onAuthErrorRtmp() {
-        TODO("Not yet implemented")
+        runOnUiThread {
+            Toast.makeText(this@MainActivity, "Auth error", Toast.LENGTH_LONG).show()
+            rtmpCamera1!!.stopStream()
+            btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
+            btnStartStop!!.setText(R.string.start_button)
+        }
     }
 
     override fun onAuthSuccessRtmp() {
-        TODO("Not yet implemented")
+        runOnUiThread {
+            Toast.makeText(this@MainActivity, "Auth success", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onConnectionFailedRtmp(reason: String) {
-        TODO("Not yet implemented")
+        runOnUiThread {
+            if (rtmpCamera1!!.reTry(5000, reason, null)) {
+                Toast.makeText(this@MainActivity, "Retry", Toast.LENGTH_LONG)
+                    .show()
+            } else {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Connection failed. $reason",
+                    Toast.LENGTH_LONG
+                )
+                    .show()
+                rtmpCamera1!!.stopStream()
+                btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
+                btnStartStop!!.setText(R.string.start_button)
+
+            }
+        }
     }
 
     override fun onConnectionStartedRtmp(rtmpUrl: String) {
-        TODO("Not yet implemented")
+
     }
 
     override fun onConnectionSuccessRtmp() {
-        TODO("Not yet implemented")
+        runOnUiThread {
+            Toast.makeText(
+                this@MainActivity,
+                "Connection success",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     override fun onDisconnectRtmp() {
-        TODO("Not yet implemented")
+        runOnUiThread {
+            Toast.makeText(this@MainActivity, "Disconnected", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onNewBitrateRtmp(bitrate: Long) {
-        TODO("Not yet implemented")
-    }
-
-    override fun onClick(p0: View?) {
         TODO("Not yet implemented")
     }
 
@@ -99,7 +160,12 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     }
 
     override fun surfaceDestroyed(p0: SurfaceHolder) {
-
+        if (rtmpCamera1!!.isStreaming) {
+            rtmpCamera1!!.stopStream()
+            btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
+            btnStartStop!!.setText(R.string.start_button)
+        }
+        rtmpCamera1!!.stopPreview()
     }
 
 }
