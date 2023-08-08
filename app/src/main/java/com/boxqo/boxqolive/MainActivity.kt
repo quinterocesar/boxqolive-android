@@ -147,17 +147,13 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
         }
     }
 
-    override fun onNewBitrateRtmp(bitrate: Long) {
-        TODO("Not yet implemented")
-    }
+    override fun onNewBitrateRtmp(bitrate: Long) { }
 
     override fun surfaceCreated(p0: SurfaceHolder) {
 
     }
 
-    override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
-
-    }
+    override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) { }
 
     override fun surfaceDestroyed(p0: SurfaceHolder) {
         if (rtmpCamera1!!.isStreaming) {
