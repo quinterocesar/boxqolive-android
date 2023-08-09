@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     private var btnStartStop: Button? = null
     private var folder: File? = null
     private var etUrl: String = "rtmp://192.168.0.146/live/ring01"
+    private var stopAttempts: Int = 3
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,9 +85,22 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
                     btnStartStop!!.setText(R.string.start_button)
                 }
             } else {
-                btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
-                btnStartStop!!.setText(R.string.start_button)
-                rtmpCamera1!!.stopStream()
+                if(stopAttempts === 1) {
+                    stopAttempts = 3
+                    btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
+                    btnStartStop!!.setText(R.string.start_button)
+                    rtmpCamera1!!.stopStream()
+                } else {
+                    stopAttempts = stopAttempts - 1
+
+                    if(stopAttempts !== 0){
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Tap ${stopAttempts} more times to stop",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
             else -> {}
         }
