@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val surfaceView = findViewById<SurfaceView>(R.id.surfaceView)
         btnStartStop = findViewById(R.id.b_start_stop)
         btnStartStop?.setOnClickListener(this)
@@ -90,6 +92,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
                     btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
                     btnStartStop!!.setText(R.string.start_button)
                     rtmpCamera1!!.stopStream()
+                    rtmpCamera1!!.stopPreview()
                 } else {
                     stopAttempts = stopAttempts - 1
 
@@ -163,9 +166,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
 
     override fun onNewBitrateRtmp(bitrate: Long) { }
 
-    override fun surfaceCreated(p0: SurfaceHolder) {
-
-    }
+    override fun surfaceCreated(p0: SurfaceHolder) { }
 
     override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) { }
 
