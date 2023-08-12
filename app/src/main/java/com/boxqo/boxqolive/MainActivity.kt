@@ -1,14 +1,10 @@
 package com.boxqo.boxqolive
 
 import android.Manifest
-import android.graphics.Color
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import android.view.View
 import android.view.WindowManager
-import android.widget.Button
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import com.pedro.rtmp.utils.ConnectCheckerRtmp
@@ -17,8 +13,9 @@ import com.pedro.rtplibrary.util.BitrateAdapter
 import java.io.File
 
 
-class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListener,
-    SurfaceHolder.Callback {
+class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Callback {
+
+    private lateinit var socketHandler: SocketHandler
     private val currentDateAndTime = ""
     private val permissions = arrayOf(
         Manifest.permission.CAMERA,
@@ -28,7 +25,6 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     private val surfaceView: SurfaceView? = null
     private val bitrateAdapter: BitrateAdapter? = null
     private var rtmpCamera1: RtmpCamera1? = null
-    private var btnStartStop: Button? = null
     private var folder: File? = null
     private var etUrl: String = "rtmp://192.168.0.146/live/ring01"
     private var stopAttempts: Int = 3
@@ -36,14 +32,26 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        permissionLauncherMultiple.launch(permissions)
+
         val surfaceView = findViewById<SurfaceView>(R.id.surfaceView)
-        btnStartStop = findViewById(R.id.b_start_stop)
-        btnStartStop?.setOnClickListener(this)
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        socketHandler = SocketHandler()
+
         rtmpCamera1 = RtmpCamera1(surfaceView, this)
         rtmpCamera1!!.setReTries(3)
         surfaceView.holder.addCallback(this)
-        permissionLauncherMultiple.launch(permissions)
+
+        socketHandler.onNewEvent.observe(this) {
+            val event = it
+            if(event.type == "ACTION"){
+                onGlassEvent(event)
+            }
+        }
+
     }
 
     private val permissionLauncherMultiple = registerForActivityResult(
@@ -55,91 +63,115 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
         }
 
         if (allAreGranted) {
-
+            val event = GlassEvent(
+                type = "APP_HEALTH",
+                message = "ALL PERMISSIONS GRANTED"
+            )
+            socketHandler.emitEvent(event)
         } else {
-            Toast.makeText(this@MainActivity, "Todos los servicios denegados", Toast.LENGTH_LONG).show()
+            val event = GlassEvent(
+                type = "APP_HEALTH",
+                message = "ALL PERMISSIONS DENIED"
+            )
+            socketHandler.emitEvent(event)
+            //Toast.makeText(this@MainActivity, "All permissions denied", Toast.LENGTH_LONG).show()
         }
     }
 
-    override fun onClick(view: View) {
-        when (view.id) {
-            R.id.b_start_stop -> if (!rtmpCamera1!!.isStreaming) {
-                if (rtmpCamera1!!.isRecording || rtmpCamera1!!.prepareAudio() && rtmpCamera1!!.prepareVideo()) {
-                    rtmpCamera1!!.prepareVideo(
-                        1024,
-                        768,
-                        30,
-                        5000000,
-                        0,
-                        0
-                    )
-                    rtmpCamera1!!.disableAudio()
-                    rtmpCamera1!!.prepareVideo()
-                    rtmpCamera1!!.startStream(etUrl)
-                    btnStartStop!!.setBackgroundColor(Color.parseColor("#D50222"))
-                    btnStartStop!!.setText(R.string.stop_button)
-                } else {
-                    Toast.makeText(
-                        this, "Error preparing stream, This device cant do it",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
-                    btnStartStop!!.setText(R.string.start_button)
-                }
-            } else {
-                if(stopAttempts === 1) {
-                    stopAttempts = 3
-                    btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
-                    btnStartStop!!.setText(R.string.start_button)
-                    rtmpCamera1!!.stopStream()
-                    rtmpCamera1!!.stopPreview()
-                } else {
-                    stopAttempts = stopAttempts - 1
+    private fun onGlassEvent(event: GlassEvent){
+        if (event.action == "START_STREAMING") {
+            if (rtmpCamera1!!.isRecording || rtmpCamera1!!.prepareAudio() && rtmpCamera1!!.prepareVideo()) {
+                rtmpCamera1!!.prepareVideo(
+                    1920,
+                    1080,
+                    60,
+                    5000000,
+                    0,
+                    0
+                )
+                rtmpCamera1!!.disableAudio()
+                rtmpCamera1!!.prepareVideo()
+                rtmpCamera1!!.enableVideoStabilization()
+                rtmpCamera1!!.startStream(etUrl)
 
-                    if(stopAttempts !== 0){
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Tap ${stopAttempts} more times to stop",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
+                val event = GlassEvent(
+                    type = "INFO",
+                    message = "STREAMING_STARTED"
+                )
+                socketHandler.emitEvent(event)
+
+            } else {
+                val event = GlassEvent(
+                    type = "ERROR",
+                    message = "ERROR PREPARING STREAM, THIS DEVICE CANT DO IT"
+                )
+                socketHandler.emitEvent(event)
             }
-            else -> {}
+        }
+
+        if(event.action == "START_STREAMING") {
+            if(rtmpCamera1!!.isRecording) {
+                rtmpCamera1!!.stopStream()
+                rtmpCamera1!!.stopPreview()
+                rtmpCamera1!!.disableVideoStabilization()
+
+                val event = GlassEvent(
+                    type = "INFO",
+                    message = "STREAMING_STOPPED"
+                )
+                socketHandler.emitEvent(event)
+            }
         }
     }
 
     override fun onAuthErrorRtmp() {
         runOnUiThread {
-            Toast.makeText(this@MainActivity, "Auth error", Toast.LENGTH_LONG).show()
+            //Toast.makeText(this@MainActivity, "Auth error", Toast.LENGTH_LONG).show()
+            val event = GlassEvent(
+                type = "ERROR",
+                message = "RTMP AUTH FAILED"
+            )
+            socketHandler.emitEvent(event)
+
             rtmpCamera1!!.stopStream()
-            btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
-            btnStartStop!!.setText(R.string.start_button)
         }
     }
 
     override fun onAuthSuccessRtmp() {
         runOnUiThread {
-            Toast.makeText(this@MainActivity, "Auth success", Toast.LENGTH_LONG).show()
+            //Toast.makeText(this@MainActivity, "Auth success", Toast.LENGTH_LONG).show()
+            val event = GlassEvent(
+                type = "INFO",
+                message = "RTMP AUTH SUCCESS"
+            )
+            socketHandler.emitEvent(event)
         }
     }
 
     override fun onConnectionFailedRtmp(reason: String) {
         runOnUiThread {
             if (rtmpCamera1!!.reTry(5000, reason, null)) {
-                Toast.makeText(this@MainActivity, "Retry", Toast.LENGTH_LONG)
-                    .show()
+                //Toast.makeText(this@MainActivity, "Retry", Toast.LENGTH_LONG)
+                //    .show()
+                val event = GlassEvent(
+                    type = "ERROR",
+                    message = "RTMP RETRY CONNECTION $reason"
+                )
+                socketHandler.emitEvent(event)
             } else {
-                Toast.makeText(
+                /*Toast.makeText(
                     this@MainActivity,
                     "Connection failed. $reason",
                     Toast.LENGTH_LONG
                 )
-                    .show()
-                rtmpCamera1!!.stopStream()
-                btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
-                btnStartStop!!.setText(R.string.start_button)
+                    .show()*/
+                val event = GlassEvent(
+                    type = "ERROR",
+                    message = "RTMP CONNECTION FAILED"
+                )
+                socketHandler.emitEvent(event)
 
+                rtmpCamera1!!.stopStream()
             }
         }
     }
@@ -150,17 +182,28 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
 
     override fun onConnectionSuccessRtmp() {
         runOnUiThread {
-            Toast.makeText(
-                this@MainActivity,
-                "Connection success",
-                Toast.LENGTH_LONG
-            ).show()
+            //Toast.makeText(
+            //    this@MainActivity,
+            //    "Connection success",
+            //    Toast.LENGTH_LONG
+            //).show()
+
+            val event = GlassEvent(
+                type = "INFO",
+                message = "RTMP CONNECTION SUCCESS"
+            )
+            socketHandler.emitEvent(event)
         }
     }
 
     override fun onDisconnectRtmp() {
         runOnUiThread {
-            Toast.makeText(this@MainActivity, "Disconnected", Toast.LENGTH_LONG).show()
+            //Toast.makeText(this@MainActivity, "Disconnected", Toast.LENGTH_LONG).show()
+            val event = GlassEvent(
+                type = "INFO",
+                message = "RTMP DISCONNECTED"
+            )
+            socketHandler.emitEvent(event)
         }
     }
 
@@ -173,10 +216,13 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, View.OnClickListen
     override fun surfaceDestroyed(p0: SurfaceHolder) {
         if (rtmpCamera1!!.isStreaming) {
             rtmpCamera1!!.stopStream()
-            btnStartStop!!.setBackgroundColor(Color.parseColor("#41D502"))
-            btnStartStop!!.setText(R.string.start_button)
         }
         rtmpCamera1!!.stopPreview()
+    }
+
+    override fun onDestroy() {
+        socketHandler.disconnectSocket()
+        super.onDestroy()
     }
 
 }
