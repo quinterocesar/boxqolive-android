@@ -8,6 +8,7 @@ data class GlassEvent(
 
     @PrimaryKey(autoGenerate = true)
     var id: Int = 0,
+    val deviceName: String,
     val type: String,
     val action: String = "",
     val message: String = ""
