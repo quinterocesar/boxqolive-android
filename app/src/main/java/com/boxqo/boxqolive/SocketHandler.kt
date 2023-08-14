@@ -11,6 +11,7 @@ import java.net.URISyntaxException
 class SocketHandler {
 
     private var socket: Socket? = null
+    private var socketId: String? = null
 
     private val _onNewEvent = MutableLiveData<GlassEvent>()
     val onNewEvent: LiveData<GlassEvent> get() = _onNewEvent
@@ -50,6 +51,7 @@ class SocketHandler {
 
 
     fun emitEvent(event: GlassEvent) {
+
         val jsonStr = Gson().toJson(event, GlassEvent::class.java)
         socket?.emit(EVENT_KEYS.NEW_MESSAGE, jsonStr)
     }

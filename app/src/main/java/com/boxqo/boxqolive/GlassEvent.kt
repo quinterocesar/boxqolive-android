@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class GlassEvent(
 
     @PrimaryKey(autoGenerate = true)
-    var id: Int = 0,
+    var id: String = "",
     val deviceName: String,
     val type: String,
     val action: String = "",
