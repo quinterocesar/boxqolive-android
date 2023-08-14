@@ -67,7 +67,7 @@ class SocketHandler {
     }
 
     companion object{
-        private const val SOCKET_URL = "http://10.0.2.2:3000/"
+        private const val SOCKET_URL = "http://192.168.0.146:3000/"
     }
 
 }
