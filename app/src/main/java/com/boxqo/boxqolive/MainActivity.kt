@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         }
 
         if(event.action == "STOP_STREAMING") {
-            if(rtmpCamera1!!.isRecording) {
+            if(!rtmpCamera1!!.isRecording) {
                 rtmpCamera1!!.stopStream()
                 rtmpCamera1!!.stopPreview()
                 rtmpCamera1!!.disableVideoStabilization()
