@@ -33,7 +33,7 @@ class SocketHandler {
             args?.let { d ->
                 if (d.isNotEmpty()) {
                     val data = d[0]
-                    Log.d("DATADEBUG","$data")
+                    Log.d("DATA DEBUG","$data")
                     if (data.toString().isNotEmpty()) {
                         val event = Gson().fromJson(data.toString(), GlassEvent::class.java)
                         _onNewEvent.postValue(event)
@@ -53,11 +53,16 @@ class SocketHandler {
     fun emitEvent(event: GlassEvent) {
 
         val jsonStr = Gson().toJson(event, GlassEvent::class.java)
-        socket?.emit(EVENT_KEYS.NEW_MESSAGE, jsonStr)
+        socket?.emit(EVENT_KEYS.NEW_EVENT, jsonStr)
+    }
+    fun emitHealthEvent(event: GlassHealth) {
+
+        val jsonStr = Gson().toJson(event, GlassHealth::class.java)
+        socket?.emit(EVENT_KEYS.NEW_EVENT, jsonStr)
     }
 
     private object EVENT_KEYS {
-        const val NEW_MESSAGE = "new_event"
+        const val NEW_EVENT = "new_event"
         const val BROADCAST = "broadcast"
     }
 

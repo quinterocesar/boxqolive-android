@@ -1,7 +1,10 @@
 package com.boxqo.boxqolive
 
 import android.Manifest
+import android.os.BatteryManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -30,6 +33,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
     private var glassGestureDetector: GlassGestureDetector? = null
     private var folder: File? = null
     private var rtmpCamera1: RtmpCamera1? = null
+    private var name: String = "GG-01"
     private var deviceName: String = "GG01"
     private var serverIpAddress: String = "192.168.0.146"
     private var etUrl: String = "rtmp://$serverIpAddress/live/$deviceName"
@@ -50,12 +54,20 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         rtmpCamera1 = RtmpCamera1(surfaceView, this)
         rtmpCamera1!!.setReTries(3)
         surfaceView.holder.addCallback(this)
-        
+
+        val mainHandler = Handler(Looper.getMainLooper())
+        mainHandler.post(object : Runnable {
+            override fun run() {
+                clientHealth()
+                mainHandler.postDelayed(this, 5000)
+            }
+        })
+
         clientConf()
 
         socketHandler.onNewEvent.observe(this) {
             val event = it
-            if(event.type == EVENT_TYPE.ACTION && event.deviceName == deviceName){
+            if (event.type == ACTION && event.deviceName == deviceName) {
                 onGlassEvent(event)
             }
         }
@@ -71,23 +83,18 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         }
 
         if (allAreGranted) {
-            val event = GlassEvent(
-                deviceName = deviceName,
-                type = EVENT_TYPE.APP_HEALTH,
-                message = "ALL PERMISSIONS GRANTED"
-            )
-            socketHandler.emitEvent(event)
+
         } else {
             val event = GlassEvent(
                 deviceName = deviceName,
-                type = EVENT_TYPE.APP_HEALTH,
+                type = INFO,
                 message = "ALL PERMISSIONS DENIED"
             )
             socketHandler.emitEvent(event)
         }
     }
 
-    private fun onGlassEvent(event: GlassEvent){
+    private fun onGlassEvent(event: GlassEvent) {
         if (event.action == "START_STREAMING") {
             if (rtmpCamera1!!.isRecording || rtmpCamera1!!.prepareAudio() && rtmpCamera1!!.prepareVideo()) {
                 rtmpCamera1!!.prepareVideo(
@@ -103,53 +110,67 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
                 rtmpCamera1!!.enableVideoStabilization()
                 rtmpCamera1!!.startStream(etUrl)
 
-                val event = GlassEvent(
+                val glassEvent = GlassEvent(
                     deviceName = deviceName,
-                    type = EVENT_TYPE.INFO,
+                    type = INFO,
                     message = "STREAMING_STARTED"
                 )
-                socketHandler.emitEvent(event)
+                socketHandler.emitEvent(glassEvent)
 
             } else {
-                val event = GlassEvent(
+                val glassEvent = GlassEvent(
                     deviceName = deviceName,
-                    type = EVENT_TYPE.ERROR,
+                    type = ERROR,
                     message = "ERROR PREPARING STREAM, THIS DEVICE CANT DO IT"
                 )
-                socketHandler.emitEvent(event)
+                socketHandler.emitEvent(glassEvent)
             }
         }
 
-        if(event.action == "STOP_STREAMING") {
-            if(!rtmpCamera1!!.isRecording) {
+        if (event.action == "STOP_STREAMING") {
+            if (!rtmpCamera1!!.isRecording) {
                 rtmpCamera1!!.stopStream()
                 rtmpCamera1!!.stopPreview()
                 rtmpCamera1!!.disableVideoStabilization()
 
 
-                val event = GlassEvent(
+                val glassEvent = GlassEvent(
                     deviceName = deviceName,
-                    type = EVENT_TYPE.INFO,
+                    type = INFO,
                     message = "STREAMING_STOPPED"
                 )
-                socketHandler.emitEvent(event)
+                socketHandler.emitEvent(glassEvent)
             }
         }
     }
 
-    private fun clientConf(){
+    private fun clientConf() {
         val event = GlassEvent(
             deviceName = deviceName,
-            type = EVENT_TYPE.CLIENT_CONF,
+            type = CLIENT_CONF,
         )
         socketHandler.emitEvent(event)
+    }
+
+    private fun clientHealth() {
+        val bm = applicationContext.getSystemService(BATTERY_SERVICE) as BatteryManager
+        val healthEvent = GlassHealth(
+            deviceName = deviceName,
+            type = APP_HEALTH,
+            name = name,
+            isConnected = true,
+            batteryLife = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY),
+            isStreaming = rtmpCamera1!!.isStreaming,
+            isAppOpen = true
+        )
+        socketHandler.emitHealthEvent(healthEvent)
     }
 
     override fun onAuthErrorRtmp() {
         runOnUiThread {
             val event = GlassEvent(
                 deviceName = deviceName,
-                type = EVENT_TYPE.ERROR,
+                type = ERROR,
                 message = "RTMP AUTH FAILED"
             )
             socketHandler.emitEvent(event)
@@ -162,7 +183,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         runOnUiThread {
             val event = GlassEvent(
                 deviceName = deviceName,
-                type = EVENT_TYPE.INFO,
+                type = INFO,
                 message = "RTMP AUTH SUCCESS"
             )
             socketHandler.emitEvent(event)
@@ -174,14 +195,14 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
             if (rtmpCamera1!!.reTry(5000, reason, null)) {
                 val event = GlassEvent(
                     deviceName = deviceName,
-                    type = EVENT_TYPE.ERROR,
+                    type = ERROR,
                     message = "RTMP RETRY CONNECTION $reason"
                 )
                 socketHandler.emitEvent(event)
             } else {
                 val event = GlassEvent(
                     deviceName = deviceName,
-                    type = EVENT_TYPE.ERROR,
+                    type = ERROR,
                     message = "RTMP CONNECTION FAILED"
                 )
                 socketHandler.emitEvent(event)
@@ -199,7 +220,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         runOnUiThread {
             val event = GlassEvent(
                 deviceName = deviceName,
-                type = EVENT_TYPE.INFO,
+                type = INFO,
                 message = "RTMP CONNECTION SUCCESS"
             )
             socketHandler.emitEvent(event)
@@ -210,18 +231,18 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         runOnUiThread {
             val event = GlassEvent(
                 deviceName = deviceName,
-                type = EVENT_TYPE.INFO,
+                type = INFO,
                 message = "RTMP DISCONNECTED"
             )
             socketHandler.emitEvent(event)
         }
     }
 
-    override fun onNewBitrateRtmp(bitrate: Long) { }
+    override fun onNewBitrateRtmp(bitrate: Long) {}
 
-    override fun surfaceCreated(p0: SurfaceHolder) { }
+    override fun surfaceCreated(p0: SurfaceHolder) {}
 
-    override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) { }
+    override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) {}
 
     override fun surfaceDestroyed(p0: SurfaceHolder) {
         if (rtmpCamera1!!.isStreaming) {
@@ -230,12 +251,23 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         rtmpCamera1!!.stopPreview()
     }
 
+    override fun onStop() {
+        super.onStop()
+        val event = GlassEvent(
+            deviceName = deviceName,
+            type = INFO,
+            message = "APP CLOSED"
+        )
+        socketHandler.emitEvent(event)
+    }
+
     override fun onDestroy() {
         socketHandler.disconnectSocket()
         super.onDestroy()
     }
+
     override fun onGesture(gesture: GlassGestureDetector.Gesture?): Boolean {
-        Log.d("DATADEBUG","$gesture")
+        Log.d("DATA DEBUG", "$gesture")
         return false
     }
 
