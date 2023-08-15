@@ -256,7 +256,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         val event = GlassEvent(
             deviceName = deviceName,
             type = INFO,
-            message = "APP CLOSED"
+            message = "APP_CLOSED"
         )
         socketHandler.emitEvent(event)
     }
