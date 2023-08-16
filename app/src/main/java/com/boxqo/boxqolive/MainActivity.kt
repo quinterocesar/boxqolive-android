@@ -13,8 +13,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import com.pedro.rtmp.utils.ConnectCheckerRtmp
 import com.pedro.rtplibrary.rtmp.RtmpCamera1
-import com.pedro.rtplibrary.util.BitrateAdapter
-import java.io.File
+//import com.pedro.rtplibrary.util.BitrateAdapter
+//import java.io.File
 
 
 class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Callback,
@@ -22,20 +22,20 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
 
     private lateinit var socketHandler: SocketHandler
 
-    private val currentDateAndTime = ""
-    private val surfaceView: SurfaceView? = null
-    private val bitrateAdapter: BitrateAdapter? = null
+    //private val currentDateAndTime = ""
+    //private val surfaceView: SurfaceView? = null
+    //private val bitrateAdapter: BitrateAdapter? = null
     private val permissions = arrayOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO,
         Manifest.permission.WRITE_EXTERNAL_STORAGE
     )
     private var glassGestureDetector: GlassGestureDetector? = null
-    private var folder: File? = null
+    //private var folder: File? = null
     private var rtmpCamera1: RtmpCamera1? = null
-    private var name: String = "GG-01"
-    private var deviceName: String = "GG01"
-    private var serverIpAddress: String = "192.168.18.240"
+    private var name: String = "GG-02"
+    private var deviceName: String = "GG02"
+    private var serverIpAddress: String = "192.168.0.146"
     private var etUrl: String = "rtmp://$serverIpAddress/live/$deviceName"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,9 +82,9 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
             allAreGranted = allAreGranted && isGranted
         }
 
-        if (allAreGranted) {
+        if (!allAreGranted) {
 
-        } else {
+        //} else {
             val event = GlassEvent(
                 deviceName = deviceName,
                 type = INFO,
@@ -106,7 +106,6 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
                     0
                 )
                 rtmpCamera1!!.disableAudio()
-                rtmpCamera1!!.prepareVideo()
                 rtmpCamera1!!.enableVideoStabilization()
                 rtmpCamera1!!.startStream(etUrl)
 

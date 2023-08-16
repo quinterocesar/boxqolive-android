@@ -11,7 +11,7 @@ import java.net.URISyntaxException
 class SocketHandler {
 
     private var socket: Socket? = null
-    private var socketId: String? = null
+    //private var socketId: String? = null
 
     private val _onNewEvent = MutableLiveData<GlassEvent>()
     val onNewEvent: LiveData<GlassEvent> get() = _onNewEvent
@@ -67,7 +67,7 @@ class SocketHandler {
     }
 
     companion object{
-        private const val SOCKET_URL = "http://10.0.2.2:3000/"
+        private const val SOCKET_URL = "http://192.168.0.146:3000/"
     }
 
 }
