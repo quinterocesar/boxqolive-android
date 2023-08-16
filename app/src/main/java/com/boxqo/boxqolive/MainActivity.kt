@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
     private var rtmpCamera1: RtmpCamera1? = null
     private var name: String = "GG-01"
     private var deviceName: String = "GG01"
-    private var serverIpAddress: String = "192.168.0.146"
+    private var serverIpAddress: String = "192.168.18.240"
     private var etUrl: String = "rtmp://$serverIpAddress/live/$deviceName"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
                     720,
                     60,
                     5000000,
-                    0,
+                    1,
                     0
                 )
                 rtmpCamera1!!.disableAudio()
