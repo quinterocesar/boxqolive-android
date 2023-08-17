@@ -1,5 +1,6 @@
 package com.boxqo.boxqolive
 
+
 import android.Manifest
 import android.os.BatteryManager
 import android.os.Bundle
@@ -11,10 +12,13 @@ import android.view.SurfaceView
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import com.boxqo.boxqolive.utils.PathUtils
 import com.pedro.rtmp.utils.ConnectCheckerRtmp
 import com.pedro.rtplibrary.rtmp.RtmpCamera1
-//import com.pedro.rtplibrary.util.BitrateAdapter
-//import java.io.File
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Callback,
@@ -22,20 +26,18 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
 
     private lateinit var socketHandler: SocketHandler
 
-    //private val currentDateAndTime = ""
-    //private val surfaceView: SurfaceView? = null
-    //private val bitrateAdapter: BitrateAdapter? = null
+    private var currentDateAndTime = ""
     private val permissions = arrayOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO,
         Manifest.permission.WRITE_EXTERNAL_STORAGE
     )
     private var glassGestureDetector: GlassGestureDetector? = null
-    //private var folder: File? = null
+    private var folder: File? = null
     private var rtmpCamera1: RtmpCamera1? = null
     private var name: String = "GG-02"
     private var deviceName: String = "GG02"
-    private var serverIpAddress: String = "192.168.0.146"
+    private var serverIpAddress: String = "192.168.18.240"
     private var etUrl: String = "rtmp://$serverIpAddress/live/$deviceName"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +45,7 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         setContentView(R.layout.activity_main)
 
         permissionLauncherMultiple.launch(permissions)
-
+        folder = PathUtils.getRecordPath()
         val surfaceView = findViewById<SurfaceView>(R.id.surfaceView)
         glassGestureDetector = GlassGestureDetector(this, this)
 
@@ -96,18 +98,28 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
 
     private fun onGlassEvent(event: GlassEvent) {
         if (event.action == "START_STREAMING") {
-            if (rtmpCamera1!!.isRecording || rtmpCamera1!!.prepareAudio() && rtmpCamera1!!.prepareVideo()) {
+            if ((!rtmpCamera1!!.isRecording || !rtmpCamera1!!.isStreaming) ||
+                rtmpCamera1!!.prepareAudio() && rtmpCamera1!!.prepareVideo()
+            ) {
                 rtmpCamera1!!.prepareVideo(
                     1280,
                     720,
                     60,
-                    5000000,
+                    6000000,
                     1,
                     0
                 )
                 rtmpCamera1!!.disableAudio()
                 rtmpCamera1!!.enableVideoStabilization()
                 rtmpCamera1!!.startStream(etUrl)
+                val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                currentDateAndTime = sdf.format(Date())
+                if (!folder!!.exists()) {
+                    folder!!.mkdir()
+                }
+                rtmpCamera1!!.startRecord(
+                    folder!!.absolutePath + "/" + currentDateAndTime + ".mp4"
+                )
 
                 val glassEvent = GlassEvent(
                     deviceName = deviceName,
@@ -127,11 +139,15 @@ class MainActivity : ComponentActivity(), ConnectCheckerRtmp, SurfaceHolder.Call
         }
 
         if (event.action == "STOP_STREAMING") {
-            if (!rtmpCamera1!!.isRecording) {
+            if (rtmpCamera1!!.isRecording || rtmpCamera1!!.isStreaming) {
                 rtmpCamera1!!.stopStream()
                 rtmpCamera1!!.stopPreview()
                 rtmpCamera1!!.disableVideoStabilization()
-
+                rtmpCamera1!!.stopRecord()
+                PathUtils.updateGallery(
+                    this,
+                    folder!!.absolutePath + "/" + currentDateAndTime + ".mp4"
+                )
 
                 val glassEvent = GlassEvent(
                     deviceName = deviceName,
